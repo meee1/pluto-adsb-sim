@@ -292,6 +292,11 @@ void adsb_airCraftIdent(int16_t *buffer, uint32_t icao, uint8_t ec, uint8_t ca, 
 	msg[12] = (checksum >> 8) & 0xff;
 	msg[13] = checksum & 0xff;
 
+	for (int i = 0; i < 14; i++)
+		printf("%02x", msg[i]);
+
+	printf(";\n");
+
 	uint8_t df17_array[256];
 	bzero(df17_array, 256);
 	frame_1090es_ppm_modulate(msg, NULL, df17_array);
@@ -355,25 +360,33 @@ void adsb_encode(int16_t *buffer, uint32_t icao, float lat, float lon, float alt
 	uint8_t time = 0;
 	uint8_t surface = 0;
 */
+	int i;
 	uint8_t df17_even[14], df17_odd[14];
 	df17_pos_rep_encode(df17_even, df17_odd, ca, icao, tc, ss, nicsb, alt, time, lat, lon, surface);
-/*	printf("8dabcdef5837703a64bb82e19e\n");
+	//printf("8dabcdef5837703a64bb82e19e\n");
 	for (i=0; i < 14; i++)
 		printf("%02x", (uint8_t)df17_even[i]);
-	printf("\n");
-	printf("8dabcdef58377416effaf73ef33e\n");
+	printf(";");
+	//printf("8dabcdef58377416effaf73ef33e\n");
 	for (i=0; i < 14; i++)
 		printf("%02x", (uint8_t)df17_odd[i]);
-	printf("\n");
+	printf(";\n");
 
-	for (i=0; i < 14; i++)
+	/*for (i=0; i < 14; i++)
 		printf("%d ", (uint8_t)df17_even[i]);
 	printf("\n");
 */
 	uint8_t df17_array[256];
 	bzero(df17_array, 256);
 	//printf("modulate\n");
-	frame_1090es_ppm_modulate(df17_even, df17_odd, df17_array);
+
+	static int flip = 0;
+	if(flip)
+		frame_1090es_ppm_modulate(df17_even, NULL, df17_array);
+	else
+		frame_1090es_ppm_modulate(df17_odd, NULL, df17_array);
+
+	flip = !flip;
 	//printf("ecriture\n");
 
 	/*FILE *fd = fopen("toto.dat", "w+");
@@ -381,6 +394,11 @@ void adsb_encode(int16_t *buffer, uint32_t icao, float lat, float lon, float alt
 		fprintf(fd, "%02x\n", df17_array[i]);
 	fclose(fd);*/
 
+	/*for (int i = 0; i < 256; i++)
+		printf("%02x", df17_array[i]);
+
+	printf("\n");
+*/
 	prepare_to_send(df17_array, 256, 0, 4096, buffer);
 
 }

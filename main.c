@@ -16,7 +16,7 @@
 #define MHZ(x) ((long long)(x*1000000.0 + .5))
 #define GHZ(x) ((long long)(x*1000000000.0 + .5))
 //#define NUM_SAMPLES 2600000
-#define NUM_SAMPLES 2048
+#define NUM_SAMPLES 256 * 8
 #define BUFFER_SIZE (NUM_SAMPLES * 2 * sizeof(int16_t))
 
 
@@ -119,14 +119,15 @@ int main(int argc, char** argv) {
     // TX stream default config
     txcfg.bw_hz = MHZ(3.0); // 3.0 MHz RF bandwidth
     txcfg.fs_hz = MHZ(2.0); // 2.6 MS/s TX sample rate
-    txcfg.lo_hz = MHZ(868); // 1.57542 GHz RF frequency
+    txcfg.lo_hz = MHZ(1090); // 1.57542 GHz RF frequency
     txcfg.rfport = "A";
     txcfg.gain_db = -20.0;
 
 	uint32_t icao = 0xABCDEF;
-	float lat = 12.34;
-	float lon = 56.78;
-	float alt = 9999.0;
+	//-38.15149787164474, 144.36593437754306
+	float lat = -38.15149787164474;
+	float lon = 144.36593437754306;
+	float alt = 0.1;
 	uint8_t *name = NULL;
 
 	const char *outfile = NULL;
@@ -139,7 +140,7 @@ int main(int argc, char** argv) {
     struct iio_channel *tx0_q = NULL;
     struct iio_buffer *tx_buffer = NULL;    
     
-    while ((opt = getopt(argc, argv, "ht:a:b:n:u:f:i:l:L:A:o:")) != EOF) {
+    while ((opt = getopt(argc, argv, "ht:a:b:n:u:f:i:l:I:L:A:o:")) != EOF) {
         switch (opt) {
             case 't':
                 path = optarg;
@@ -263,11 +264,11 @@ int main(int argc, char** argv) {
     	iio_channel_attr_write_longlong(phy_chn, "rf_bandwidth", txcfg.bw_hz);
     	iio_channel_attr_write_longlong(phy_chn, "sampling_frequency", txcfg.fs_hz);    
     	iio_channel_attr_write_double(phy_chn, "hardwaregain", txcfg.gain_db);
-
+/*
     	iio_channel_attr_write_bool(
     	    iio_device_find_channel(phydev, "altvoltage0", true)
     	    , "powerdown", true); // Turn OFF RX LO
-    	
+  */  	
     	iio_channel_attr_write_longlong(
     	    iio_device_find_channel(phydev, "altvoltage1", true)
     	    , "frequency", txcfg.lo_hz); // Set TX LO frequency
@@ -306,6 +307,15 @@ int main(int argc, char** argv) {
 			printf("Error: fail to open %s\n", outfile);
 			return EXIT_FAILURE;
 		}
+
+unsigned char rawData[44] = {
+	0x52, 0x49, 0x46, 0x46, 0x24, 0x6C, 0xDC, 0x02, 0x57, 0x41, 0x56, 0x45,
+	0x66, 0x6D, 0x74, 0x20, 0x10, 0x00, 0x00, 0x00, 0x01, 0x00, 0x02, 0x00,
+	0x80, 0x84, 0x1E, 0x00, 0x00, 0x12, 0x7A, 0x00, 0x04, 0x00, 0x10, 0x00,
+	0x64, 0x61, 0x74, 0x61, 0x00, 0x6C, 0xDC, 0x02
+};
+
+		fwrite(rawData, 1, 44, fout);
 		ptx_buffer = (short *)malloc(4096 * sizeof(short));
 		if (!ptx_buffer) {
 			printf("Error: malloc fail\n");
@@ -380,11 +390,18 @@ int main(int argc, char** argv) {
 
 		while(!stop) {
 			adsb_encode(ptx_buffer, icao, lat, lon, alt, ca, tc, ss, nicsb, time, surface);
-    	    ntx = iio_buffer_push(tx_buffer);
-    	    if (ntx < 0) {
-    	        printf("Error pushing buf %d\n", (int) ntx);
-    	        break;
-    	    }       
+			if (outfile == NULL) {
+    	    	ntx = iio_buffer_push(tx_buffer);
+    	    	if (ntx < 0) {
+    	    	    printf("Error pushing buf %d\n", (int) ntx);
+    	    	    break;
+    	    	}       
+				sleep(1);
+			} else {
+				fwrite(ptx_buffer, sizeof(short), 4096, fout);
+			} 
+			
+			
 
 			if (alt == 10000 && direction == 100)
 				direction = -100;
