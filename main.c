@@ -353,8 +353,8 @@ unsigned char rawData[44] = {
 			prevdate = date;
 
 			if (ret == 42) {
-				frame_1090es_ppm_modulate(trame, NULL, df17_array);
-				prepare_to_send(df17_array, 256, 0, 4096, ptx_buffer);
+				int size = frame_1090es_ppm_modulate(trame, df17_array);
+				prepare_to_send(df17_array, size + 1, 0, 4096, ptx_buffer);
 
 				if (outfile == NULL) {
     	    		ntx = iio_buffer_push(tx_buffer);
@@ -389,7 +389,7 @@ unsigned char rawData[44] = {
 
 
 		while(!stop) {
-			adsb_encode(ptx_buffer, icao, lat, lon, alt, ca, tc, ss, nicsb, time, surface);
+			int size = adsb_encode(ptx_buffer, icao, lat, lon, alt, ca, tc, ss, nicsb, time, surface);
 			if (outfile == NULL) {
     	    	ntx = iio_buffer_push(tx_buffer);
     	    	if (ntx < 0) {
@@ -398,7 +398,7 @@ unsigned char rawData[44] = {
     	    	}       
 				sleep(1);
 			} else {
-				fwrite(ptx_buffer, sizeof(short), 4096, fout);
+				fwrite(ptx_buffer, sizeof(short), size, fout);
 			} 
 			
 			
@@ -409,7 +409,7 @@ unsigned char rawData[44] = {
 				direction = 100;
 			alt += direction;
 
-			adsb_airCraftIdent(ptx_buffer, icao, 0, ca, tc, name);
+			size = adsb_airCraftIdent(ptx_buffer, icao, 0, ca, tc, name);
 			if (outfile == NULL) {
     	    	ntx = iio_buffer_push(tx_buffer);
     	    	if (ntx < 0) {
@@ -418,7 +418,7 @@ unsigned char rawData[44] = {
     	    	}       
 				sleep(1);
 			} else {
-				fwrite(ptx_buffer, sizeof(short), 4096, fout);
+				fwrite(ptx_buffer, sizeof(short), size, fout);
 			}
 		}
     }

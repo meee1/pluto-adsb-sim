@@ -205,10 +205,10 @@ void df17_pos_rep_encode(uint8_t * df17_even, uint8_t *df17_odd, uint8_t ca, uin
 	/* TODO: to complete */
 }
 
-void frame_1090es_ppm_modulate(uint8_t *even, uint8_t *odd, uint8_t *ppm)
+int frame_1090es_ppm_modulate(uint8_t *even, uint8_t *ppm)
 {
 	int i;
-	int start = 48; // pause
+	int start = 10; // pause
 	ppm[start++] = 0xA1;
 	ppm[start++] = 0x40;
 	for (i=0; i < 14; i++) {
@@ -217,23 +217,9 @@ void frame_1090es_ppm_modulate(uint8_t *even, uint8_t *odd, uint8_t *ppm)
 		ppm[start++] = (enc     ) & 0xff;
 	}	
 
-	start += 100; // pause
-	if (odd == NULL) {
-		for (i=0; i < 30; i++)
-			ppm[start++] = 0x00;
-		return;
-	}
-	ppm[start++] = 0xA1;
-	ppm[start++] = 0x40;
-	//printf("%d\n", start);
-
-	for (i=0; i < 14; i++) {
-		uint16_t enc = manchester_encode(~odd[i]);
-		ppm[start++] = (enc >> 8) & 0xff;
-		ppm[start++] = (enc     ) & 0xff;
-	}
-
 	// 48 byte pause after
+	printf("ppm size:  %i\n", start);
+	return start;
 }
 
 
@@ -244,7 +230,7 @@ void frame_1090es_ppm_modulate(uint8_t *even, uint8_t *odd, uint8_t *ppm)
  * 0-9 -> 48 - 57
  * _   -> 32
  */
-void adsb_airCraftIdent(int16_t *buffer, uint32_t icao, uint8_t ec, uint8_t ca, uint8_t tc, uint8_t *name)
+int adsb_airCraftIdent(int16_t *buffer, uint32_t icao, uint8_t ec, uint8_t ca, uint8_t tc, uint8_t *name)
 {
 	int i;
 	char c;
@@ -299,18 +285,19 @@ void adsb_airCraftIdent(int16_t *buffer, uint32_t icao, uint8_t ec, uint8_t ca, 
 
 	uint8_t df17_array[256];
 	bzero(df17_array, 256);
-	frame_1090es_ppm_modulate(msg, NULL, df17_array);
+	int size = frame_1090es_ppm_modulate(msg, df17_array);
 
-	prepare_to_send(df17_array, 256, 0, 4096, buffer);
+	return prepare_to_send(df17_array, size + 1, 0, 4096, buffer);
 
 
 }
 
-void prepare_to_send(uint8_t *rawframe, int length, int16_t min, int16_t max, int16_t *out)
+int prepare_to_send(uint8_t *rawframe, int length, int16_t min, int16_t max, int16_t *out)
 {
 	int i, ii;
+	bzero(out, 4096);
 	/* convert bit to I/Q values */
-	int size = 256 * 8;
+	int size = length * 8;
 	for (i=0, ii=0; i < size; i++, ii+=2) {
 		uint8_t index = i >> 3;
 		uint8_t shift = 7 - (i & 0x7); 
@@ -322,9 +309,11 @@ void prepare_to_send(uint8_t *rawframe, int length, int16_t min, int16_t max, in
 			out[ii+1] = min;
 		}
 	}
+
+	return ii;
 }
 
-void adsb_encode(int16_t *buffer, uint32_t icao, float lat, float lon, float alt, uint8_t ca, uint8_t tc,
+int adsb_encode(int16_t *buffer, uint32_t icao, float lat, float lon, float alt, uint8_t ca, uint8_t tc,
 	uint8_t ss, uint8_t nicsb, uint8_t time, uint8_t surface)
 {
 
@@ -380,15 +369,17 @@ void adsb_encode(int16_t *buffer, uint32_t icao, float lat, float lon, float alt
 	bzero(df17_array, 256);
 	//printf("modulate\n");
 
+	int size = 0;
 	static int flip = 0;
 	if(flip)
-		frame_1090es_ppm_modulate(df17_even, NULL, df17_array);
+		size = frame_1090es_ppm_modulate(df17_even, df17_array);
 	else
-		frame_1090es_ppm_modulate(df17_odd, NULL, df17_array);
+		size = frame_1090es_ppm_modulate(df17_odd, df17_array);
 
 	flip = !flip;
 	//printf("ecriture\n");
 
+	
 	/*FILE *fd = fopen("toto.dat", "w+");
 	for (i = 0; i < 256; i++)
 		fprintf(fd, "%02x\n", df17_array[i]);
@@ -399,6 +390,6 @@ void adsb_encode(int16_t *buffer, uint32_t icao, float lat, float lon, float alt
 
 	printf("\n");
 */
-	prepare_to_send(df17_array, 256, 0, 4096, buffer);
+	return prepare_to_send(df17_array, size + 1, 0, 4096, buffer);
 
 }
