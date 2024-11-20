@@ -118,8 +118,9 @@ int main(int argc, char** argv) {
     
     // TX stream default config
     txcfg.bw_hz = MHZ(3.0); // 3.0 MHz RF bandwidth
-    txcfg.fs_hz = MHZ(2.0); // 2.6 MS/s TX sample rate
-    txcfg.lo_hz = MHZ(1090); // 1.57542 GHz RF frequency
+    txcfg.fs_hz = MHZ(2.0); // 2.0 MS/s TX sample rate
+    //txcfg.lo_hz = MHZ(1090);
+	txcfg.lo_hz = MHZ(916); 
     txcfg.rfport = "A";
     txcfg.gain_db = -20.0;
 
